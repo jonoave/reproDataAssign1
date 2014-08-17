@@ -1,0 +1,109 @@
+### Introduction
+Peer Assignment1 : "PA1_template.Rmd"
+
+### A. Loading and preprocessing the data
+```{r setoptions, echo=TRUE}
+## read in the data and explore
+data1 <- read.csv("activity.csv")
+str(data1)
+summary(data1)
+class(data1)
+## transform the data in date column into readable R format
+convertDate <- as.Date(data1$date)
+## create new data frame with convertDate
+data2 <- data.frame(data1$steps, convertDate, data1$interval)
+## rename colummns
+colnames(data2) <- c("steps", "date", "interval")
+```
+
+
+### B. Mean total number of steps per day
+```{r}
+## create table that averages number of step per day
+tableStep <- tapply(data2$step,data2$date, sum)
+```
+
+Histogram of total number of steps/day
+```{r, results }
+hist(tableStep, col = "blue", main="Total number of steps/day", xlab = "Number of steps")
+mean(tableStep, na.rm = TRUE)
+median(tableStep, na.rm = TRUE)
+```
+Mean number of steps: 10766
+Median number of steps: 10765
+
+
+### C. Average daily pattern
+Create a time series of plot of 5-minute interval and average number of steps 
+```{r}
+plot(data2$interval, data2$steps, type= "l", xlab = "time in hours", 
+    ylab = "Average number of steps/day", main = "Average number of steps across all intervals")
+```
+
+Calculate the 5-minute inteval that has the maximum number of steps
+
+```{r}
+meanStepsInterval <- aggregate(steps~interval, data = data2, mean)
+head(meanStepsInterval)
+## get the row number with the maximum number of steps
+which.max(meanStepsInterval$steps)
+## returns that row 
+meanStepsInterval[104,]
+```
+The 5-minute interval with maximum number of steps: 835
+
+
+### D. Imputting missing values
+Calculate rows with missing values
+```{r}
+good <- complete.cases(data2)
+head(good)
+table(good)
+```
+Number of rows with missing values: 2304
+
+### Replacing rows with missing values (NA) with the average of th t ime intverval
+
+```{r}
+library(plyr)
+impute <- function(x, fun) {
+  missing <- is.na(x)
+  replace(x, missing, fun(x[!missing]))
+}
+replaceNA <- ddply(data2, ~ interval, transform, steps = impute(steps, mean))
+head(replaceNA)
+```
+
+Histogram of new dataset with replaced missing values
+```{r}
+tableStepNA <- tapply(replaceNA$step,replaceNA$date, sum)
+head(tableStepNA)
+hist(tableStepNA, col = "red", main="Total number of steps/day", xlab = "Number of steps")
+mean(tableStepNA)
+median(tableStepNA)
+```
+Mean total number of steps: 10766 
+Median total number of steps: 10766 
+
+The values for mean is the same but the values for median differed very slightly between the dataset with or without missing data. 
+
+Imputing missing data has no effect on the mean but has a tiny effect on the median for the estimates of the total daily number of steps.
+
+
+### E. Differences between activity patterns in weekdays and weekends
+```{r}
+## convert the date factor to weekdays
+convertToDate <- replaceNA$date
+days <- weekdays(convertToDate)
+## convert the days to return True if weekend
+weekendCheck <- (days == "Saturday") | (days == "Sunday")
+## create new data frame including add weekendCheck
+data3 <- cbind(replaceNA, weekendCheck)
+## plot with lattice
+library(lattice)
+## convert weekendCheck to a factor variable, and rename them to "Weekend" and "Weekday"
+data3$weekendCheck <- as.factor(data3$weekendCheck)
+levels(data3$weekendCheck) <- c("weekend", "weekday")
+xyplot(steps~interval | weekendCheck, data = data3, type = "l", layout = c(1,2), xlab = "interval", ylab = "Number of steps")
+```
+

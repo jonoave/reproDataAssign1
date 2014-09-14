@@ -2,6 +2,11 @@
 Peer Assignment1 : "PA1_template.Rmd"
 
 ### A. Loading and preprocessing the data
+The data for this assignment is in the archive 'activity.zip'.
+Variables in the data are:
+1. steps: Number of steps taking in a 5-minute intervals (missing values are shown as NA).
+2. date: The date on where measurement was taken in YYYY-MM-DD format
+3. interval: Time identifier for the 5-minute interval where measurement was taken
 
 ```r
 ## read in the data and explore
@@ -46,14 +51,31 @@ convertDate <- as.Date(data1$date)
 data2 <- data.frame(data1$steps, convertDate, data1$interval)
 ## rename colummns
 colnames(data2) <- c("steps", "date", "interval")
+head(data2)
+```
+
+```
+##   steps       date interval
+## 1    NA 2012-10-01        0
+## 2    NA 2012-10-01        5
+## 3    NA 2012-10-01       10
+## 4    NA 2012-10-01       15
+## 5    NA 2012-10-01       20
+## 6    NA 2012-10-01       25
 ```
 
 
 ### B. Mean total number of steps per day
 
 ```r
-## create table that averages number of step per day
+## create table that sums up number of step per day
 tableStep <- tapply(data2$step,data2$date, sum)
+head(tableStep)
+```
+
+```
+## 2012-10-01 2012-10-02 2012-10-03 2012-10-04 2012-10-05 2012-10-06 
+##         NA        126      11352      12116      13294      15420
 ```
 
 Histogram of total number of steps/day
@@ -87,18 +109,10 @@ Median number of steps: 10765
 Create a time series of plot of 5-minute interval and average number of steps 
 
 ```r
-plot(data2$interval, data2$steps, type= "l", xlab = "time in hours", 
-    ylab = "Average number of steps/day", main = "Average number of steps across all intervals")
-```
-
-![plot of chunk unnamed-chunk-2](./PA1_template_files/figure-html/unnamed-chunk-2.png) 
-
-Calculate the 5-minute inteval that has the maximum number of steps
-
-
-```r
-meanStepsInterval <- aggregate(steps~interval, data = data2, mean)
-head(meanStepsInterval)
+# create average number of steps per interval across all days
+library(plyr)
+avgStepsPerInterval = ddply(data2, .(interval), summarize, steps=mean(steps, na.rm = TRUE))
+head(avgStepsPerInterval)
 ```
 
 ```
@@ -112,17 +126,17 @@ head(meanStepsInterval)
 ```
 
 ```r
-## get the row number with the maximum number of steps
-which.max(meanStepsInterval$steps)
+plot(avgStepsPerInterval$interval, avgStepsPerInterval$steps, type= "l", col = "blue", xlab = "time in hours",ylab = "Average number of steps/day", main = "Average number of steps across all intervals")
 ```
 
-```
-## [1] 104
-```
+![plot of chunk unnamed-chunk-2](./PA1_template_files/figure-html/unnamed-chunk-2.png) 
+
+Get the 5-minute interval that has the maximum number of steps
 
 ```r
-## returns that row 
-meanStepsInterval[104,]
+# get the row number for the interval with the highest steps
+maxInterval = which.max(avgStepsPerInterval$steps)
+avgStepsPerInterval[maxInterval, ]
 ```
 
 ```
@@ -155,11 +169,9 @@ table(good)
 ```
 Number of rows with missing values: 2304
 
-### Replacing rows with missing values (NA) with the average of th t ime intverval
-
+#### Replacing rows with missing values (NA) with the average of the time intverval
 
 ```r
-library(plyr)
 impute <- function(x, fun) {
   missing <- is.na(x)
   replace(x, missing, fun(x[!missing]))
@@ -229,13 +241,58 @@ days <- weekdays(convertToDate)
 weekendCheck <- (days == "Saturday") | (days == "Sunday")
 ## create new data frame including add weekendCheck
 data3 <- cbind(replaceNA, weekendCheck)
-## plot with lattice
-library(lattice)
+head(data3)
+```
+
+```
+##    steps       date interval weekendCheck
+## 1  1.717 2012-10-01        0        FALSE
+## 2  0.000 2012-10-02        0        FALSE
+## 3  0.000 2012-10-03        0        FALSE
+## 4 47.000 2012-10-04        0        FALSE
+## 5  0.000 2012-10-05        0        FALSE
+## 6  0.000 2012-10-06        0         TRUE
+```
+
+```r
 ## convert weekendCheck to a factor variable, and rename them to "Weekend" and "Weekday"
 data3$weekendCheck <- as.factor(data3$weekendCheck)
-levels(data3$weekendCheck) <- c("weekend", "weekday")
-xyplot(steps~interval | weekendCheck, data = data3, type = "l", layout = c(1,2), xlab = "interval", ylab = "Number of steps")
+levels(data3$weekendCheck) <- c("weekday", "weekend")
+head(data3)
+```
+
+```
+##    steps       date interval weekendCheck
+## 1  1.717 2012-10-01        0      weekday
+## 2  0.000 2012-10-02        0      weekday
+## 3  0.000 2012-10-03        0      weekday
+## 4 47.000 2012-10-04        0      weekday
+## 5  0.000 2012-10-05        0      weekday
+## 6  0.000 2012-10-06        0      weekend
+```
+
+```r
+## summarise avg number of steps for each interval across all weekdays or weekends
+avgStepsInterval= ddply(data3, .(interval, weekendCheck), summarize, steps=mean(steps))
+head(avgStepsInterval)
+```
+
+```
+##   interval weekendCheck   steps
+## 1        0      weekday 2.25115
+## 2        0      weekend 0.21462
+## 3        5      weekday 0.44528
+## 4        5      weekend 0.04245
+## 5       10      weekday 0.17317
+## 6       10      weekend 0.01651
+```
+
+```r
+## plot with lattice
+library(lattice)
+xyplot(steps~interval | weekendCheck, data = avgStepsInterval, type = "l", layout = c(1,2), xlab = "interval", ylab = "Number of steps")
 ```
 
 ![plot of chunk unnamed-chunk-7](./PA1_template_files/figure-html/unnamed-chunk-7.png) 
 
+Comparing between walking activities, there was a lot more walking in the morning compared to weekends.
